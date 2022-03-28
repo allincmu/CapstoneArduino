@@ -24,35 +24,96 @@
 /*******************************************************************************/
 
 #include "ADXL335.h"
-int debug = 1;
-char RxByteFromDesktopApp;
-char* RxFromDesktopApp;
-char* RxFromDesktopApp1;
 ADXL335 accelerometer;
+
+#include <SoftwareSerial.h>                                                    //add the soft serial libray
+#define rxpin 11                                                                //set the RX pin to pin 11
+#define txpin 10                                                               //set the TX pin to pin 10
+SoftwareSerial BTSerial(rxpin, txpin);      
+
+String inputString = "";         // a String to hold incoming data
+bool stringComplete = false;  // whether the string is complete
+
+
+
+//#define DEBUG
+//
+//#ifndef DEBUG
+//#endif
+
+
+const int debug = 1;
+const int DataAggregationInterval = 5;
+
+int count;
+bool started = 0;
+
 
 void setup()
 {
   Serial.begin(9600);
+  BTSerial.begin(9600);
+  
   accelerometer.begin();
+
+  // reserve 200 bytes for the Bluetooth inputString:
+  inputString.reserve(200);
+  count = 0;
 }
 
 void loop()
 {
-  RxFromDesktopApp = "RX: ";
-  while (Serial.available() > 0) { // Checks whether data is comming from the serial port
-     RxByteFromDesktopApp = Serial.read();
-     sprintf(RxFromDesktopApp1,"%s%c", RxFromDesktopApp, RxByteFromDesktopApp); // Reads the data from the serial port
-     Serial.println(RxFromDesktopApp1);
-//     Serial.println(RxByteFromDesktopApp);
-    sprintf(RxFromDesktopApp, "%s", RxFromDesktopApp1);
+  
+  while (!started) {
+    if (stringComplete) {
+      Serial.println("rcvd something");
+
+      if (inputString == "start\n") {
+        Serial.println("rcvd start");
+        started = 1;
+      }
+      
+      // clear the string:
+      inputString = "";
+      stringComplete = false;
+    } else {
+      Serial.println("Waiting for start signal");
+      delay(1000);
+      serialEvent();
+    }
   }
 
-//  Serial.println(RxFromDesktopApp);
+  // print the string when a newline arrives:
+  if (stringComplete) {
+    Serial.println(inputString);
+
+    if (inputString == "end\n") {
+      Serial.println("ended");
+      started = 0;
+      return;
+    }
+    
+    // clear the string:
+    inputString = "";
+    stringComplete = false;
+  }
+
+  
+    
+
+ 
+  if (count == DataAggregationInterval) {
+    count = 0;
+    BTSerial.println("Acceleration: 15, HR: 65");
+  }
+
+
   
   double magnitude;
   magnitude = get_mag_accel();
   
   delay(1000);
+  count++;
 }
 
 double get_mag_accel()
@@ -94,4 +155,23 @@ double get_mag_accel()
 
   }
   return magnitude;
+}
+
+/*
+  SerialEvent occurs whenever a new data comes in the hardware serial RX. This
+  routine is run between each time loop() runs, so using delay inside loop can
+  delay response. Multiple bytes of data may be available.
+*/
+void serialEvent() {
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    inputString += inChar;
+    // if the incoming character is a newline, set a flag so the main loop can
+    // do something about it:
+    if (inChar == '\n') {
+      stringComplete = true;
+    }
+  }
 }
