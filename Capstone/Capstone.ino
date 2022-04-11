@@ -41,25 +41,6 @@ void setup()
 void loop()
 {
   
-//  while (!started) {
-//    if (stringComplete) {
-//      Serial.println("rcvd something");
-//
-//      if (inputString == "start\n") {
-//        Serial.println("rcvd start");
-//        started = 1;
-//      }
-//      
-//      // clear the string:
-//      inputString = "";
-//      stringComplete = false;
-//    } else {
-//      Serial.println("Waiting for start signal");
-//      delay(1000);
-//      serialEvent();
-//    }
-//  }
-
   // print the string when a newline arrives:
   if (stringComplete) {
     Serial.println(inputString);
@@ -80,15 +61,20 @@ void loop()
 
 
   Serial.println(count);
-  double magnitude;
-  magnitude = get_mag_accel();
-   if (count == DataAggregationInterval) {
+  float ax, ay, az;
+  get_accel(&ax, &ay, &az);
+  
+  if (count == DataAggregationInterval) {
     count = 0;
-    BTSerial.print(magnitude);
+    
+    BTSerial.print(ax);
+    BTSerial.print(",");
+    BTSerial.print(ay);
+    BTSerial.print(",");
+    BTSerial.print(az);
+    BTSerial.print(",");
     BTSerial.println(",65\n");
-    Serial.print("Send over bluetooth: ");
-    Serial.print(magnitude);
-    Serial.println(",65\n");
+    Serial.print("Send over bluetooth");
   }
 
   
@@ -96,20 +82,16 @@ void loop()
   count++;
 }
 
-double get_mag_accel()
+void get_accel(float * ax, float * ay, float * az)
 {
   int x,y,z;
-  float ax,ay,az;
   double magnitude;
 
   // Get voltage Values
   accelerometer.getXYZ(&x,&y,&z);
 
   // Calculate acceleration
-  accelerometer.getAcceleration(&ax,&ay,&az);
-
-  // Calculate magnitude of acceleration
-  magnitude = sqrt(sq(ax) + sq(ay) + sq(az));
+  accelerometer.getAcceleration(ax,ay,az);
 
 
   if (debug >= 3) {
@@ -121,37 +103,12 @@ double get_mag_accel()
 
   if (debug >= 2) {
     Serial.println("accleration of X/Y/Z: ");
-    Serial.print(ax);
+    Serial.print(*ax);
     Serial.println(" g");
-    Serial.print(ay);
+    Serial.print(*ay);
     Serial.println(" g");
-    Serial.print(az);
+    Serial.print(*az);
     Serial.println(" g");
 
-    Serial.println("Magnitude: ");
-    Serial.print(magnitude);
-    Serial.println(" g");
-    Serial.println("");
-
-  }
-  return magnitude;
-}
-
-/*
-  SerialEvent occurs whenever a new data comes in the hardware serial RX. This
-  routine is run between each time loop() runs, so using delay inside loop can
-  delay response. Multiple bytes of data may be available.
-*/
-void serialEvent() {
-  while (BTSerial.available()) {
-    // get the new byte:
-    char inChar = (char)BTSerial.read();
-    // add it to the inputString:
-    inputString += inChar;
-    // if the incoming character is a newline, set a flag so the main loop can
-    // do something about it:
-    if (inChar == '\n') {
-      stringComplete = true;
-    }
   }
 }
